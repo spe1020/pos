@@ -7,11 +7,23 @@ export const fmt = (cents) => {
 };
 
 /**
- * Anything above this wants a second look before it is accepted — a price or a
- * pile of cash past it is far more likely a slipped decimal point than a real
- * amount. Raising it is a one-line change here.
+ * A price above this wants a second look before it is accepted — nothing on
+ * these shelves costs $50, so it is far more likely a slipped decimal point
+ * than a real amount. Raising it is a one-line change here.
  */
 export const IMPLAUSIBLE_CENTS = 5000;
+
+/**
+ * Cash handed over needs its own, higher ceiling. A customer paying for a $3
+ * sale with a $100 bill is ordinary, and asking about it every time would
+ * train the cashier to click through the question without reading it. $150
+ * clears every bill in circulation while still catching a missing decimal
+ * point on anything over $1.50.
+ */
+export const IMPLAUSIBLE_TENDER_CENTS = 15000;
+
+export const priceNeedsCheck = (cents) => cents > IMPLAUSIBLE_CENTS;
+export const tenderNeedsCheck = (cents) => cents > IMPLAUSIBLE_TENDER_CENTS;
 
 /**
  * "1.50", "$1.50", "1,50" -> 150. Also "1,250.00" -> 125000.

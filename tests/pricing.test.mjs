@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { priceCart, refundValue } from '../src/lib/pricing.js';
-import { allocate, parseMoney, toInput } from '../src/lib/money.js';
+import { allocate, parseMoney, toInput, priceNeedsCheck, tenderNeedsCheck } from '../src/lib/money.js';
 
 test('tax is charged on the discounted price, not the shelf price', () => {
   const p = priceCart(
@@ -79,6 +79,26 @@ test('parseMoney never hands back a negative', () => {
   assert.equal(parseMoney('-5.00'), 0);
   assert.equal(parseMoney('-0.01'), 0);
   assert.equal(parseMoney('$-20'), 0);
+});
+
+test('cash gets a higher ceiling than a price, so real bills pass unquestioned', () => {
+  // A $3 sale paid with a $100 bill is an ordinary morning. Asking about it
+  // would train the cashier to click through the question without reading it.
+  assert.equal(tenderNeedsCheck(parseMoney('100')), false, '$100 bill is not suspicious');
+  assert.equal(tenderNeedsCheck(parseMoney('100.00')), false);
+  assert.equal(tenderNeedsCheck(parseMoney('300')), true, '$300 in cash is');
+  assert.equal(tenderNeedsCheck(parseMoney('150')), false, 'the ceiling itself still passes');
+  assert.equal(tenderNeedsCheck(parseMoney('150.01')), true);
+
+  // A price is held to the tighter limit — nothing on these shelves costs $50.
+  assert.equal(priceNeedsCheck(parseMoney('1.50')), false);
+  assert.equal(priceNeedsCheck(parseMoney('50')), false, 'the ceiling itself still passes');
+  assert.equal(priceNeedsCheck(parseMoney('100')), true, 'a $100 price wants a second look');
+  assert.equal(
+    priceNeedsCheck(parseMoney('150')) && !tenderNeedsCheck(parseMoney('150')),
+    true,
+    'the two ceilings are genuinely different'
+  );
 });
 
 test('cents survive a round trip through the input box', () => {

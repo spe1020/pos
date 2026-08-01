@@ -10,7 +10,7 @@ import TenderModal from './components/TenderModal';
 import { RefundPane, SalesPane } from './components/SalesPanes';
 import { Tape, RefundTape, CustomerDisplay, PrintedReceipt } from './components/Register';
 
-import { fmt, parseMoney, stamp, isToday, IMPLAUSIBLE_CENTS } from './lib/money';
+import { fmt, parseMoney, stamp, isToday, priceNeedsCheck, tenderNeedsCheck } from './lib/money';
 import { priceCart, refundValue, remainingQty } from './lib/pricing';
 import { load, save, KEYS, exportBackup, importBackup, storageIsPersistent } from './lib/storage';
 import { useScanner } from './hooks/useScanner';
@@ -185,11 +185,12 @@ export default function App() {
   /**
    * A slipped decimal point is the one input error a parser can't catch: "500"
    * for "5.00" is a perfectly valid amount, just not the one anybody meant.
-   * So anything over IMPLAUSIBLE_CENTS asks once before it counts. The source
-   * modal stays mounted underneath, so backing out returns to it as it was.
+   * So an implausible amount asks once before it counts. Prices and cash have
+   * different ceilings — see money.js. Every guarded input keeps its value in
+   * state that outlives the confirmation, so backing out loses nothing.
    */
-  const guardAmount = (cents, what, run) => {
-    if (cents > IMPLAUSIBLE_CENTS) setConfirming({ cents, what, run });
+  const guardAmount = (needsCheck, cents, what, run) => {
+    if (needsCheck(cents)) setConfirming({ cents, what, run });
     else run();
   };
   useScanner(handleScan, { enabled: !blocked });
@@ -224,7 +225,7 @@ export default function App() {
       stock: parseInt(pending.stock, 10) || 0,
       added: stamp(),
     };
-    guardAmount(product.price, `${name} costs`, () => {
+    guardAmount(priceNeedsCheck, product.price, `${name} costs`, () => {
       setCatalog((c) => ({ ...c, [product.barcode]: product }));
       addToCart(product);
       beep('scan');
@@ -237,7 +238,7 @@ export default function App() {
     const name = customItem.name.trim() || 'Custom item';
     const price = parseMoney(customItem.price);
     if (price <= 0) { notify('Give it a price first', 'bad'); return; }
-    guardAmount(price, `${name} costs`, () => {
+    guardAmount(priceNeedsCheck, price, `${name} costs`, () => {
       addToCart({ barcode: 'CUSTOM-' + Date.now(), name, price, custom: true });
       beep('scan');
       setCustomItem(null);
@@ -248,7 +249,7 @@ export default function App() {
     const apply = () =>
       setCatalog((c) => (c[barcode] ? { ...c, [barcode]: { ...c[barcode], ...patch } } : c));
     if (patch.price == null) return apply();
-    guardAmount(patch.price, `${catalog[barcode]?.name || 'This item'} costs`, apply);
+    guardAmount(priceNeedsCheck, patch.price, `${catalog[barcode]?.name || 'This item'} costs`, apply);
   };
 
   const deleteProduct = (barcode) =>
@@ -652,7 +653,7 @@ export default function App() {
           discountTotal={priced.discountTotal}
           onComplete={(method, given) =>
             method === 'cash'
-              ? guardAmount(given, 'Cash handed over is', () => completeSale(method, given))
+              ? guardAmount(tenderNeedsCheck, given, 'Cash handed over is', () => completeSale(method, given))
               : completeSale(method, given)
           }
           cash={cashInput}
@@ -664,8 +665,8 @@ export default function App() {
       {confirming && (
         <Modal title="Does that look right?" onClose={() => setConfirming(null)}>
           <p className="modal-note">
-            {confirming.what} <strong>{fmt(confirming.cents)}</strong>. That's more than{' '}
-            {fmt(IMPLAUSIBLE_CENTS)}, so it's worth a second look — check the decimal point.
+            {confirming.what} <strong>{fmt(confirming.cents)}</strong>. That's a lot for this
+            store, so it's worth a second look — check the decimal point.
           </p>
           <div className="modal-actions">
             <button className="btn ghost" onClick={() => setConfirming(null)}>
