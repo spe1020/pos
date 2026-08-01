@@ -106,9 +106,28 @@ Returns are valued at **what was actually paid**, including any discount. A $10 
 at 25% off refunds $7.50 plus its tax, not $10. Otherwise a sale becomes a way to make money
 by returning things.
 
+Returns that come back a few at a time are valued cumulatively — what the line is worth
+returned up to here, minus what has already gone back — rather than rounding each visit on
+its own. Rounding each visit separately loses pennies: a $1.00 line of three would refund
+33c three times and the shop would eat the missing cent. Done cumulatively, giving a line
+back one unit at a time pays exactly what giving it all back at once pays, and so does any
+interleaving across lines. Tax is handled the same way.
+
 **Money.** Every amount in the app is an integer number of cents. Floats are never used, so
 totals can't drift. When a discount is split across several lines it uses largest-remainder
 allocation, which means the parts always add back up to exactly the discount — no lost penny.
+
+Typed amounts are read leniently. `$`, spaces and stray characters are ignored, and the last
+`.` or `,` in what you typed is the decimal point — so `1.50` and `1,50` are both $1.50, and
+`1,250.00` is $1250.00. A bare comma is always a decimal point, never a thousands mark, so
+`2,500` reads as $2.50. In a store where nothing costs $20 that is the safer guess, and it
+errs cheap rather than expensive. Nothing ever parses to a negative amount.
+
+Because a slipped decimal point produces a perfectly valid number, the register asks before
+accepting an implausible one: over **$50** for an item price, or over **$150** in cash handed
+over. Cash gets the higher ceiling so that paying for a $3 sale with a $100 bill — an
+ordinary morning — doesn't raise a question every time. Both numbers live at the top of
+`src/lib/money.js` and are one line each to change.
 
 ---
 
@@ -138,11 +157,12 @@ copy somewhere that isn't the same laptop.
 ## Layout
 
 ```
+SPEC.md                     what this was built to do, and why each rule exists
 src/
 ├─ App.jsx                  state, scanning, checkout, refunds
 ├─ styles.css               everything visual, including print styles
 ├─ lib/
-│  ├─ money.js              cents, formatting, penny-exact allocation
+│  ├─ money.js              cents, parsing, penny-exact allocation, sanity ceilings
 │  ├─ pricing.js            discounts, tax, refund valuation
 │  └─ storage.js            localStorage + backup export/import
 ├─ hooks/
