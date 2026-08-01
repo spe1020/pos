@@ -72,7 +72,7 @@ export default function DiscountsPane({ discounts, onSave, onDelete, usageByDisc
                     ...draft,
                     value: draft.kind === 'percent'
                       ? Math.min(100, Math.max(0, parseFloat(raw.replace(/[^0-9.]/g, '')) || 0))
-                      : Math.max(0, parseMoney(raw)),
+                      : parseMoney(raw),
                   });
                 }}
                 inputMode="decimal"

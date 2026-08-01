@@ -10,7 +10,7 @@ import TenderModal from './components/TenderModal';
 import { RefundPane, SalesPane } from './components/SalesPanes';
 import { Tape, RefundTape, CustomerDisplay, PrintedReceipt } from './components/Register';
 
-import { fmt, parseMoney, stamp, isToday } from './lib/money';
+import { fmt, parseMoney, stamp, isToday, IMPLAUSIBLE_CENTS } from './lib/money';
 import { priceCart, refundValue, remainingQty } from './lib/pricing';
 import { load, save, KEYS, exportBackup, importBackup, storageIsPersistent } from './lib/storage';
 import { useScanner } from './hooks/useScanner';
@@ -46,6 +46,7 @@ export default function App() {
   const [customItem, setCustomItem] = useState(null); // open-price item
   const [picker, setPicker] = useState(null);        // {target:'line'|'order', key?}
   const [tendering, setTendering] = useState(false);
+  const [confirming, setConfirming] = useState(null); // implausibly large amount awaiting a nod
   const [lastReceipt, setLastReceipt] = useState(null);
   const [viewReceipt, setViewReceipt] = useState(null);
 
@@ -178,7 +179,18 @@ export default function App() {
     [catalog, discounts, mode, sales, settings.trackStock, addToCart, beep, notify]
   );
 
-  const blocked = !!(pending || customItem || picker || tendering || viewReceipt);
+  const blocked = !!(pending || customItem || picker || tendering || viewReceipt || confirming);
+
+  /**
+   * A slipped decimal point is the one input error a parser can't catch: "500"
+   * for "5.00" is a perfectly valid amount, just not the one anybody meant.
+   * So anything over IMPLAUSIBLE_CENTS asks once before it counts. The source
+   * modal stays mounted underneath, so backing out returns to it as it was.
+   */
+  const guardAmount = (cents, what, run) => {
+    if (cents > IMPLAUSIBLE_CENTS) setConfirming({ cents, what, run });
+    else run();
+  };
   useScanner(handleScan, { enabled: !blocked });
 
   /* --------------------------- keyboard shortcuts ----------------------- */
@@ -207,28 +219,36 @@ export default function App() {
     const product = {
       barcode: pending.barcode,
       name,
-      price: Math.max(0, parseMoney(pending.price)),
+      price: parseMoney(pending.price),
       stock: parseInt(pending.stock, 10) || 0,
       added: stamp(),
     };
-    setCatalog((c) => ({ ...c, [product.barcode]: product }));
-    addToCart(product);
-    beep('scan');
-    setPending(null);
-    notify(`${name} saved to items`);
+    guardAmount(product.price, `${name} costs`, () => {
+      setCatalog((c) => ({ ...c, [product.barcode]: product }));
+      addToCart(product);
+      beep('scan');
+      setPending(null);
+      notify(`${name} saved to items`);
+    });
   };
 
   const commitCustom = () => {
     const name = customItem.name.trim() || 'Custom item';
     const price = parseMoney(customItem.price);
     if (price <= 0) { notify('Give it a price first', 'bad'); return; }
-    addToCart({ barcode: 'CUSTOM-' + Date.now(), name, price, custom: true });
-    beep('scan');
-    setCustomItem(null);
+    guardAmount(price, `${name} costs`, () => {
+      addToCart({ barcode: 'CUSTOM-' + Date.now(), name, price, custom: true });
+      beep('scan');
+      setCustomItem(null);
+    });
   };
 
-  const updateProduct = (barcode, patch) =>
-    setCatalog((c) => (c[barcode] ? { ...c, [barcode]: { ...c[barcode], ...patch } } : c));
+  const updateProduct = (barcode, patch) => {
+    const apply = () =>
+      setCatalog((c) => (c[barcode] ? { ...c, [barcode]: { ...c[barcode], ...patch } } : c));
+    if (patch.price == null) return apply();
+    guardAmount(patch.price, `${catalog[barcode]?.name || 'This item'} costs`, apply);
+  };
 
   const deleteProduct = (barcode) =>
     setCatalog((c) => {
@@ -531,7 +551,7 @@ export default function App() {
       </main>
 
       {/* ---------------------------- overlays ---------------------------- */}
-      {pending && (
+      {pending && !confirming && (
         <Modal title="New item" onClose={() => setPending(null)}>
           <p className="modal-note">
             Barcode <code>{pending.barcode}</code> isn't in the store yet. Name it and price it once —
@@ -576,7 +596,7 @@ export default function App() {
         </Modal>
       )}
 
-      {customItem && (
+      {customItem && !confirming && (
         <Modal title="Custom item" onClose={() => setCustomItem(null)}>
           <p className="modal-note">
             For anything without a barcode — a cookie, a bottle of lemonade, a favour. It's rung
@@ -624,13 +644,42 @@ export default function App() {
         />
       )}
 
-      {tendering && (
+      {tendering && !confirming && (
         <TenderModal
           total={priced.total}
           discountTotal={priced.discountTotal}
-          onComplete={completeSale}
+          onComplete={(method, given) =>
+            method === 'cash'
+              ? guardAmount(given, 'Cash handed over is', () => completeSale(method, given))
+              : completeSale(method, given)
+          }
           onClose={() => setTendering(false)}
         />
+      )}
+
+      {confirming && (
+        <Modal title="Does that look right?" onClose={() => setConfirming(null)}>
+          <p className="modal-note">
+            {confirming.what} <strong>{fmt(confirming.cents)}</strong>. That's more than{' '}
+            {fmt(IMPLAUSIBLE_CENTS)}, so it's worth a second look — check the decimal point.
+          </p>
+          <div className="modal-actions">
+            <button className="btn ghost" onClick={() => setConfirming(null)}>
+              Go back and fix it
+            </button>
+            <button
+              className="btn pay"
+              autoFocus
+              onClick={() => {
+                const go = confirming.run;
+                setConfirming(null);
+                go();
+              }}
+            >
+              Yes, {fmt(confirming.cents)} is right
+            </button>
+          </div>
+        </Modal>
       )}
 
       {viewReceipt && (

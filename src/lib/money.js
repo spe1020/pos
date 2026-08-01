@@ -7,37 +7,40 @@ export const fmt = (cents) => {
 };
 
 /**
- * "1.50", "$1.50", "1,50" -> 150. Also "1,250.00" -> 125000 and "-5.00" -> -500.
+ * Anything above this wants a second look before it is accepted — a price or a
+ * pile of cash past it is far more likely a slipped decimal point than a real
+ * amount. Raising it is a one-line change here.
+ */
+export const IMPLAUSIBLE_CENTS = 5000;
+
+/**
+ * "1.50", "$1.50", "1,50" -> 150. Also "1,250.00" -> 125000.
  *
- * The whole thing is string arithmetic — the input never becomes a float, so
- * there is no rounding to inherit. Sub-cent input rounds half up: "1.999" -> 200.
+ * String arithmetic end to end — the input never becomes a float, so there is
+ * no float rounding to inherit. Sub-cent input rounds half up: "1.999" -> 200.
  *
- * A comma is a decimal point in "1,50" and a thousands separator in "1,250",
- * which is genuinely ambiguous. The rule: a lone comma followed by exactly
- * three digits at the end is a thousands separator, anything else is a decimal
- * point. When both separators appear, whichever comes last is the decimal one.
+ * The last '.' or ',' in the string is the decimal point and anything before it
+ * is grouping. So "1,250.00" is $1250.00, but a bare "2,500" is $2.50, not
+ * $2500 — in a store where nothing costs $20 the thousands reading is almost
+ * never the one meant, and it is the reading that errs expensive.
+ *
+ * Never returns a negative. Nothing in a register needs signed money: refunds
+ * are stored positive with a `type`, stock goes through parseInt. Holding that
+ * rule here means no call site has to remember it. A signed parse, if one is
+ * ever needed, gets its own name.
  */
 export function parseMoney(input) {
   const cleaned = String(input ?? '').replace(/[^0-9.,-]/g, '');
   if (!/\d/.test(cleaned)) return 0;
+  if (cleaned.startsWith('-')) return 0;
 
-  const negative = cleaned.trimStart().startsWith('-');
-  const body = cleaned.replace(/-/g, '');
-  const commas = (body.match(/,/g) || []).length;
-  const dots = (body.match(/\./g) || []).length;
+  const at = Math.max(cleaned.lastIndexOf(','), cleaned.lastIndexOf('.'));
+  const whole = (at < 0 ? cleaned : cleaned.slice(0, at)).replace(/\D/g, '') || '0';
+  const frac = (at < 0 ? '' : cleaned.slice(at + 1)).replace(/\D/g, '');
 
-  let decimalSep = '';
-  if (commas && dots) decimalSep = body.lastIndexOf(',') > body.lastIndexOf('.') ? ',' : '.';
-  else if (commas === 1 && !/,\d{3}$/.test(body)) decimalSep = ',';
-  else if (dots === 1) decimalSep = '.';
-
-  const at = decimalSep ? body.lastIndexOf(decimalSep) : -1;
-  const whole = (at < 0 ? body : body.slice(0, at)).replace(/\D/g, '') || '0';
-  const frac = (at < 0 ? '' : body.slice(at + 1)).replace(/\D/g, '');
-
-  const cents =
-    Number(whole) * 100 + Number((frac + '00').slice(0, 2)) + (Number(frac[2] || 0) >= 5 ? 1 : 0);
-  return negative ? -cents : cents;
+  return (
+    Number(whole) * 100 + Number((frac + '00').slice(0, 2)) + (Number(frac[2] || 0) >= 5 ? 1 : 0)
+  );
 }
 
 export const toInput = (cents) => ((Number(cents) || 0) / 100).toFixed(2);

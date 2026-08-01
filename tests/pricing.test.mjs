@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { priceCart, refundValue } from '../src/lib/pricing.js';
-import { allocate, parseMoney } from '../src/lib/money.js';
+import { allocate, parseMoney, toInput } from '../src/lib/money.js';
 
 test('tax is charged on the discounted price, not the shelf price', () => {
   const p = priceCart(
@@ -58,18 +58,34 @@ test('money parses the ways a kid might type it', () => {
   assert.equal(parseMoney('abc'), 0);
 });
 
-test('money parses the ways a grown-up might type it', () => {
-  assert.equal(parseMoney('1,250.00'), 125000, 'a comma before three digits is a thousands mark');
-  assert.equal(parseMoney('$1,250'), 125000);
-  assert.equal(parseMoney('12,345,678'), 1234567800);
+test('the last separator is the decimal point, and a bare comma is always one', () => {
+  assert.equal(parseMoney('1,250.00'), 125000, 'last separator wins when both appear');
   assert.equal(parseMoney('1.250.000,50'), 125000050, 'European grouping still lands right');
-  assert.equal(parseMoney('-5.00'), -500, 'a minus sign survives instead of flipping to +500');
+
+  // A bare comma never means thousands. In a store where nothing costs $20 the
+  // thousands reading is almost never meant, and it is the one that errs expensive.
+  assert.equal(parseMoney('2,500'), 250, 'not $2500');
+  assert.equal(parseMoney('$1,250'), 125, 'not $1250');
+
   assert.equal(parseMoney('$ 2.5 '), 250);
   assert.equal(parseMoney('.99'), 99);
   assert.equal(parseMoney('1.999'), 200, 'sub-cent input rounds half up');
   assert.equal(parseMoney('1.994'), 199);
   assert.equal(parseMoney(null), 0);
   assert.equal(parseMoney('.'), 0);
+});
+
+test('parseMoney never hands back a negative', () => {
+  assert.equal(parseMoney('-5.00'), 0);
+  assert.equal(parseMoney('-0.01'), 0);
+  assert.equal(parseMoney('$-20'), 0);
+});
+
+test('cents survive a round trip through the input box', () => {
+  const values = [0, 1, 5, 9, 10, 99, 100, 101, 999, 1000, 1234, 4999, 5000, 12345, 99999, 100000];
+  for (const c of values) {
+    assert.equal(parseMoney(toInput(c)), c, `${c} -> "${toInput(c)}" -> ${parseMoney(toInput(c))}`);
+  }
 });
 
 test('returning a line one unit at a time pays out the same as returning it at once', () => {
@@ -107,6 +123,30 @@ test('a discounted sale returned unit by unit still returns exactly the total pa
     }
   });
   assert.equal(paid, p.total, 'penny-exact against the sale total, however it is broken up');
+});
+
+test('partial refunds interleaved across lines still sum to exactly the sale total', () => {
+  const p = priceCart(
+    [
+      { barcode: 'A', name: 'A', price: 333, qty: 3 },
+      { barcode: 'B', name: 'B', price: 1000, qty: 2 },
+      { barcode: 'C', name: 'C', price: 799, qty: 1, discount: { kind: 'percent', value: 15 } },
+    ],
+    [{ id: 'd', name: '25 off', kind: 'percent', value: 25 }],
+    6
+  );
+  const sale = { lines: p.lines.map((l) => ({ ...l, refunded: 0 })), taxPct: p.taxPct };
+
+  // Customer dribbles the return back over five visits, mixed lines, mixed sizes.
+  const visits = [[1, 1], [0, 2], [2, 1], [1, 1], [0, 1]];
+  let paid = 0;
+  for (const [line, qty] of visits) {
+    paid += refundValue(sale, { [line]: qty }).total;
+    sale.lines[line].refunded += qty;
+  }
+
+  assert.deepEqual(sale.lines.map((l) => l.refunded), [3, 2, 1], 'everything came back');
+  assert.equal(paid, p.total, 'penny-exact however the returns are interleaved');
 });
 
 test('a line cannot be refunded past what is left on it', () => {

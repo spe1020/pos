@@ -4,7 +4,7 @@ import { fmt, parseMoney } from '../lib/money';
 
 export default function TenderModal({ total, discountTotal, onComplete, onClose }) {
   const [cash, setCash] = useState('');
-  const given = Math.max(0, parseMoney(cash));
+  const given = parseMoney(cash);
   const change = given - total;
 
   // Sensible bills to reach for: exact, next dollar, next five, next ten, next twenty.
