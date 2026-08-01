@@ -76,6 +76,51 @@ git push -u origin main
 
 ---
 
+## Putting it online
+
+Running it from GitHub means the register works on any device on the counter — an iPad, a
+spare laptop — without installing anything on it.
+
+**One-time setup.** On GitHub, go to **Settings → Pages**, and under **Source** choose
+**GitHub Actions**. That's the only click; there's nothing to configure after it.
+
+**After that, pushing publishes.** Every push to `main` builds the app and puts it online.
+The money tests run first, and a failing test stops the deploy — a register that gets change
+wrong should never reach the counter. Watch it happen on the **Actions** tab; when the run
+goes green it prints the address, which will be:
+
+```
+https://spe1020.github.io/pos/
+```
+
+You can also deploy without pushing anything: **Actions → Deploy to GitHub Pages → Run
+workflow**.
+
+### Three things to know before you use it for real
+
+**The online register starts empty, and that's expected.** The browser keeps each address's
+data separately, so the online one can't see anything you set up on `localhost`. They're two
+different stores that happen to look alike. **Build the real catalog on the online one** —
+otherwise you'll price everything twice.
+
+**On an iPad or iPhone, add it to the Home Screen first — before you scan a single item.**
+Open the address in Safari, tap the **Share** button, choose **Add to Home Screen**, and from
+then on open the register from *that icon*, never from Safari. Two reasons, both of which
+will bite you otherwise:
+
+- Safari deletes a site's stored data after **seven days** without a visit. A shop that's
+  quiet over a holiday can come back to an empty register. Home screen apps are exempt.
+- Home screen storage is separate from Safari's, so a catalog built in Safari **does not
+  carry over** when you add the icon later. Do it first and you only do it once.
+
+**It needs internet to open.** Loading the page pulls it from GitHub. Once it's open it runs
+entirely on the device and a dropped connection doesn't interrupt a sale — but *refreshing*
+or reopening it without wifi leaves you with nothing until wifi is back. Don't reload it
+mid-shift on a shaky connection. Making it open offline is possible — it needs a service
+worker, which isn't built yet.
+
+---
+
 ## How the scanner works
 
 Almost every USB barcode scanner is a **keyboard wedge**. The computer thinks it's a

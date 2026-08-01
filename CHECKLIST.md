@@ -10,6 +10,16 @@ is the part a person has to do.
 Start it up (`npm run dev`) and open the address it prints. Grab three or four things with
 barcodes on them — cereal boxes, cans, whatever's around.
 
+> **Run this twice.** Once on `localhost` on the development machine, and again on the
+> deployed address (`https://spe1020.github.io/pos/`) **on the actual device that will sit at
+> the counter** — the iPad, over the counter's wifi, with the real scanner attached to it.
+> Passing on a laptop proves the code is right; it proves nothing about that tablet, that
+> scanner and that connection. The second run is the one that counts. On iPad, add the site
+> to the Home Screen and run the checklist from that icon — see *Putting it online* in the
+> README for why.
+>
+> This run was on: ☐ localhost / laptop  ☐ the deployed URL on the counter device
+
 ---
 
 ## Before you start
