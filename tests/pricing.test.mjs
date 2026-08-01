@@ -57,3 +57,60 @@ test('money parses the ways a kid might type it', () => {
   assert.equal(parseMoney(''), 0);
   assert.equal(parseMoney('abc'), 0);
 });
+
+test('money parses the ways a grown-up might type it', () => {
+  assert.equal(parseMoney('1,250.00'), 125000, 'a comma before three digits is a thousands mark');
+  assert.equal(parseMoney('$1,250'), 125000);
+  assert.equal(parseMoney('12,345,678'), 1234567800);
+  assert.equal(parseMoney('1.250.000,50'), 125000050, 'European grouping still lands right');
+  assert.equal(parseMoney('-5.00'), -500, 'a minus sign survives instead of flipping to +500');
+  assert.equal(parseMoney('$ 2.5 '), 250);
+  assert.equal(parseMoney('.99'), 99);
+  assert.equal(parseMoney('1.999'), 200, 'sub-cent input rounds half up');
+  assert.equal(parseMoney('1.994'), 199);
+  assert.equal(parseMoney(null), 0);
+  assert.equal(parseMoney('.'), 0);
+});
+
+test('returning a line one unit at a time pays out the same as returning it at once', () => {
+  // $1.00 of value over 3 units is the classic penny-loser: 33 + 33 + 33 = 99.
+  const p = priceCart([{ barcode: 'A', name: 'A', price: 50, qty: 3 }], [], 0);
+  const line = { ...p.lines[0], refunded: 0 };
+  assert.equal(line.finalNet, 150);
+
+  const staggered = { lines: [{ ...line }], taxPct: p.taxPct };
+  let sum = 0;
+  for (let i = 0; i < 3; i++) {
+    sum += refundValue(staggered, { 0: 1 }).total;
+    staggered.lines[0].refunded += 1;
+  }
+  assert.equal(sum, refundValue({ lines: [line], taxPct: p.taxPct }, { 0: 3 }).total);
+});
+
+test('a discounted sale returned unit by unit still returns exactly the total paid', () => {
+  const p = priceCart(
+    [
+      { barcode: 'A', name: 'A', price: 333, qty: 3 },
+      { barcode: 'B', name: 'B', price: 1000, qty: 2 },
+      { barcode: 'C', name: 'C', price: 799, qty: 1, discount: { kind: 'percent', value: 15 } },
+    ],
+    [{ id: 'd', name: '25 off', kind: 'percent', value: 25 }],
+    6
+  );
+  const sale = { lines: p.lines.map((l) => ({ ...l, refunded: 0 })), taxPct: p.taxPct };
+
+  let paid = 0;
+  sale.lines.forEach((l, i) => {
+    while (l.refunded < l.qty) {
+      paid += refundValue(sale, { [i]: 1 }).total;
+      l.refunded += 1;
+    }
+  });
+  assert.equal(paid, p.total, 'penny-exact against the sale total, however it is broken up');
+});
+
+test('a line cannot be refunded past what is left on it', () => {
+  const p = priceCart([{ barcode: 'A', name: 'A', price: 500, qty: 2 }], [], 0);
+  const sale = { lines: [{ ...p.lines[0], refunded: 2 }], taxPct: 0 };
+  assert.equal(refundValue(sale, { 0: 2 }).total, 0, 'nothing left to give back');
+});

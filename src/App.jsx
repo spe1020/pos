@@ -207,7 +207,7 @@ export default function App() {
     const product = {
       barcode: pending.barcode,
       name,
-      price: parseMoney(pending.price),
+      price: Math.max(0, parseMoney(pending.price)),
       stock: parseInt(pending.stock, 10) || 0,
       added: stamp(),
     };

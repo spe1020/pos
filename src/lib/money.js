@@ -6,11 +6,39 @@ export const fmt = (cents) => {
   return (n < 0 ? '-' : '') + '$' + (Math.abs(n) / 100).toFixed(2);
 };
 
-/** "1.50", "$1.50", "1,50" -> 150 */
-export const parseMoney = (input) => {
-  const n = parseFloat(String(input).replace(/,/g, '.').replace(/[^0-9.]/g, ''));
-  return Number.isFinite(n) ? Math.round(n * 100) : 0;
-};
+/**
+ * "1.50", "$1.50", "1,50" -> 150. Also "1,250.00" -> 125000 and "-5.00" -> -500.
+ *
+ * The whole thing is string arithmetic — the input never becomes a float, so
+ * there is no rounding to inherit. Sub-cent input rounds half up: "1.999" -> 200.
+ *
+ * A comma is a decimal point in "1,50" and a thousands separator in "1,250",
+ * which is genuinely ambiguous. The rule: a lone comma followed by exactly
+ * three digits at the end is a thousands separator, anything else is a decimal
+ * point. When both separators appear, whichever comes last is the decimal one.
+ */
+export function parseMoney(input) {
+  const cleaned = String(input ?? '').replace(/[^0-9.,-]/g, '');
+  if (!/\d/.test(cleaned)) return 0;
+
+  const negative = cleaned.trimStart().startsWith('-');
+  const body = cleaned.replace(/-/g, '');
+  const commas = (body.match(/,/g) || []).length;
+  const dots = (body.match(/\./g) || []).length;
+
+  let decimalSep = '';
+  if (commas && dots) decimalSep = body.lastIndexOf(',') > body.lastIndexOf('.') ? ',' : '.';
+  else if (commas === 1 && !/,\d{3}$/.test(body)) decimalSep = ',';
+  else if (dots === 1) decimalSep = '.';
+
+  const at = decimalSep ? body.lastIndexOf(decimalSep) : -1;
+  const whole = (at < 0 ? body : body.slice(0, at)).replace(/\D/g, '') || '0';
+  const frac = (at < 0 ? '' : body.slice(at + 1)).replace(/\D/g, '');
+
+  const cents =
+    Number(whole) * 100 + Number((frac + '00').slice(0, 2)) + (Number(frac[2] || 0) >= 5 ? 1 : 0);
+  return negative ? -cents : cents;
+}
 
 export const toInput = (cents) => ((Number(cents) || 0) / 100).toFixed(2);
 

@@ -79,19 +79,36 @@ export function priceCart(cart, orderDiscounts = [], taxPct = 0) {
   };
 }
 
+/** What the first `n` units of a line are cumulatively worth. */
+const unitsValue = (line, n) =>
+  n <= 0 ? 0 : n >= line.qty ? line.finalNet : Math.round((line.finalNet * n) / line.qty);
+
 /**
  * What a partial return is worth. Uses the discounted price the customer
  * actually paid for those units, not the shelf price — otherwise a 20%-off
  * sale becomes a way to make money by returning things.
+ *
+ * Valued as the *difference* between what this line is worth refunded up to
+ * here and what it was worth already refunded, rather than rounding each
+ * refund on its own. Rounding in isolation loses money on staggered returns:
+ * a $1.00 line of 3 refunds 33c three separate times and the shop eats the
+ * missing penny. Differences telescope, so returning a line one unit at a
+ * time gives exactly the same as returning it all at once. Tax gets the same
+ * treatment across the sale.
  */
 export function refundValue(sale, quantities) {
+  let priorNet = 0;
   let net = 0;
   sale.lines.forEach((l, i) => {
-    const q = quantities[i] || 0;
-    if (q <= 0) return;
-    net += q === l.qty ? l.finalNet : Math.round((l.finalNet * q) / l.qty);
+    const already = l.refunded || 0;
+    const q = Math.max(0, Math.min(quantities[i] || 0, l.qty - already));
+    const prior = unitsValue(l, already);
+    priorNet += prior;
+    net += unitsValue(l, already + q) - prior;
   });
-  const tax = Math.round((net * (sale.taxPct || 0)) / 100);
+  const rate = sale.taxPct || 0;
+  const taxUpTo = (n) => Math.round((n * rate) / 100);
+  const tax = taxUpTo(priorNet + net) - taxUpTo(priorNet);
   return { net, tax, total: net + tax };
 }
 

@@ -92,7 +92,7 @@ export default function ItemsPane({
                 className="cell num"
                 defaultValue={toInput(p.price)}
                 key={p.barcode + p.price}
-                onBlur={(e) => onUpdate(p.barcode, { price: parseMoney(e.target.value) })}
+                onBlur={(e) => onUpdate(p.barcode, { price: Math.max(0, parseMoney(e.target.value)) })}
                 inputMode="decimal"
                 aria-label={`Price for ${p.name}`}
               />
