@@ -46,6 +46,7 @@ export default function App() {
   const [customItem, setCustomItem] = useState(null); // open-price item
   const [picker, setPicker] = useState(null);        // {target:'line'|'order', key?}
   const [tendering, setTendering] = useState(false);
+  const [cashInput, setCashInput] = useState('');    // lives here so a confirm can't wipe it
   const [confirming, setConfirming] = useState(null); // implausibly large amount awaiting a nod
   const [lastReceipt, setLastReceipt] = useState(null);
   const [viewReceipt, setViewReceipt] = useState(null);
@@ -324,6 +325,7 @@ export default function App() {
     setCart([]);
     setOrderDiscounts([]);
     setTendering(false);
+    setCashInput('');
     beep('sale');
     setDisplay(method === 'cash' ? `CHANGE  ${fmt(sale.change)}` : 'THANK YOU');
     notify(`Receipt ${number} — ${fmt(sale.total)} paid`);
@@ -653,7 +655,9 @@ export default function App() {
               ? guardAmount(given, 'Cash handed over is', () => completeSale(method, given))
               : completeSale(method, given)
           }
-          onClose={() => setTendering(false)}
+          cash={cashInput}
+          setCash={setCashInput}
+          onClose={() => { setTendering(false); setCashInput(''); }}
         />
       )}
 

@@ -1,9 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import Modal from './Modal';
 import { fmt, parseMoney } from '../lib/money';
 
-export default function TenderModal({ total, discountTotal, onComplete, onClose }) {
-  const [cash, setCash] = useState('');
+/**
+ * `cash` is held by App rather than here on purpose: confirming an implausible
+ * tender unmounts this modal, and a cashier who backs out of that confirmation
+ * must find the box exactly as they left it. Local state would be wiped.
+ */
+export default function TenderModal({ total, discountTotal, cash, setCash, onComplete, onClose }) {
   const given = parseMoney(cash);
   const change = given - total;
 
