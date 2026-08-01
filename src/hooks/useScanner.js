@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 /**
  * Nearly every USB barcode scanner is a "keyboard wedge": the operating system
  * sees a keyboard, and a scan arrives as the barcode's characters typed very
- * fast followed by Enter. No driver, no WebUSB, no permissions prompt.
+ * fast followed by Enter or Tab. No driver, no WebUSB, no permissions prompt.
  *
  * We tell a scan apart from a person typing by the gap between keystrokes.
  * A scanner fires characters 2-15ms apart; a fast human is 80ms+ at best.
@@ -32,7 +32,11 @@ export function useScanner(onScan, { enabled = true, minLength = 3, gapMs = 120 
       if (now - lastKeyAt > gapMs) buffer = '';
       lastKeyAt = now;
 
-      if (e.key === 'Enter') {
+      // Enter is the usual suffix, but plenty of scanners ship configured to
+      // send Tab instead. Both end a scan. preventDefault only fires when the
+      // buffer really looks like one, so a person tabbing between fields still
+      // moves focus normally.
+      if (e.key === 'Enter' || e.key === 'Tab') {
         if (buffer.length >= minLength) {
           e.preventDefault();
           handler.current(buffer.trim());

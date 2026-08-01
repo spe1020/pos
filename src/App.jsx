@@ -189,8 +189,8 @@ export default function App() {
    * different ceilings — see money.js. Every guarded input keeps its value in
    * state that outlives the confirmation, so backing out loses nothing.
    */
-  const guardAmount = (needsCheck, cents, what, run) => {
-    if (needsCheck(cents)) setConfirming({ cents, what, run });
+  const guardAmount = (needsCheck, cents, run) => {
+    if (needsCheck(cents)) setConfirming({ cents, run });
     else run();
   };
   useScanner(handleScan, { enabled: !blocked });
@@ -225,7 +225,7 @@ export default function App() {
       stock: parseInt(pending.stock, 10) || 0,
       added: stamp(),
     };
-    guardAmount(priceNeedsCheck, product.price, `${name} costs`, () => {
+    guardAmount(priceNeedsCheck, product.price, () => {
       setCatalog((c) => ({ ...c, [product.barcode]: product }));
       addToCart(product);
       beep('scan');
@@ -238,7 +238,7 @@ export default function App() {
     const name = customItem.name.trim() || 'Custom item';
     const price = parseMoney(customItem.price);
     if (price <= 0) { notify('Give it a price first', 'bad'); return; }
-    guardAmount(priceNeedsCheck, price, `${name} costs`, () => {
+    guardAmount(priceNeedsCheck, price, () => {
       addToCart({ barcode: 'CUSTOM-' + Date.now(), name, price, custom: true });
       beep('scan');
       setCustomItem(null);
@@ -249,7 +249,7 @@ export default function App() {
     const apply = () =>
       setCatalog((c) => (c[barcode] ? { ...c, [barcode]: { ...c[barcode], ...patch } } : c));
     if (patch.price == null) return apply();
-    guardAmount(priceNeedsCheck, patch.price, `${catalog[barcode]?.name || 'This item'} costs`, apply);
+    guardAmount(priceNeedsCheck, patch.price, apply);
   };
 
   const deleteProduct = (barcode) =>
@@ -653,7 +653,7 @@ export default function App() {
           discountTotal={priced.discountTotal}
           onComplete={(method, given) =>
             method === 'cash'
-              ? guardAmount(tenderNeedsCheck, given, 'Cash handed over is', () => completeSale(method, given))
+              ? guardAmount(tenderNeedsCheck, given, () => completeSale(method, given))
               : completeSale(method, given)
           }
           cash={cashInput}
@@ -663,10 +663,11 @@ export default function App() {
       )}
 
       {confirming && (
-        <Modal title="Does that look right?" onClose={() => setConfirming(null)}>
-          <p className="modal-note">
-            {confirming.what} <strong>{fmt(confirming.cents)}</strong>. That's a lot for this
-            store, so it's worth a second look — check the decimal point.
+        <Modal title="Check the amount" onClose={() => setConfirming(null)}>
+          {/* Rendered as currency, a slipped decimal point shows itself. That
+              reads the same whichever ceiling was tripped, so it is one string. */}
+          <p className="modal-note big-amount">
+            <strong>{fmt(confirming.cents)}</strong> — is that right?
           </p>
           <div className="modal-actions">
             <button className="btn ghost" onClick={() => setConfirming(null)}>

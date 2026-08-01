@@ -361,6 +361,9 @@ body { margin: 0; background: var(--ink); }
 .modal-head h3 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
 .modal-note { margin: 0 0 12px; font-size: 13px; line-height: 1.6; color: var(--dim); }
 .modal-note.spaced { margin-top: 18px; }
+/* The whole point of the sanity check is that the figure is unmissable. */
+.modal-note.big-amount { font-size: 15px; color: var(--paper); margin-bottom: 18px; }
+.modal-note.big-amount strong { font-family: var(--mono); font-size: 30px; color: var(--vfd); }
 .modal-note code { font-family: var(--mono); color: var(--vfd); background: var(--ink); padding: 2px 6px; border-radius: 4px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .field span { font-size: 11px; text-transform: uppercase; letter-spacing: .13em; color: var(--dim); }

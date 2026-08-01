@@ -37,26 +37,28 @@ Run the money tests any time you change pricing:
 npm test
 ```
 
+Before using this at a real counter for the first time, work through
+[`CHECKLIST.md`](CHECKLIST.md) once with the scanner plugged in. The tests cover the
+arithmetic; the checklist covers the hardware and the browser, which they can't.
+
 ---
 
 ## Putting it on GitHub
 
-From inside this folder:
+This folder is already a git repository with its history committed, so there's nothing to
+initialise — it just needs somewhere to go.
 
-```bash
-git init
-git add .
-git commit -m "Register: barcode POS with discounts and refunds"
-git branch -M main
-```
+Make an empty repo on GitHub. **No README, no .gitignore, no licence** — this folder already
+has all three, and letting GitHub add its own will collide with what's here.
 
-Make an empty repo on GitHub (no README, no .gitignore — this folder already has both),
-then:
+Then, from inside this folder:
 
 ```bash
 git remote add origin https://github.com/YOUR-USERNAME/register.git
 git push -u origin main
 ```
+
+After that first push, `git push` on its own is enough.
 
 `node_modules/` and `dist/` are already ignored, so only source goes up.
 
