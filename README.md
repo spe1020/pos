@@ -43,24 +43,36 @@ arithmetic; the checklist covers the hardware and the browser, which they can't.
 
 ---
 
-## Putting it on GitHub
+## Keeping GitHub up to date
 
-This folder is already a git repository with its history committed, so there's nothing to
-initialise — it just needs somewhere to go.
+This folder is already a git repository and it already lives at
+**<https://github.com/spe1020/pos>**. Nothing needs setting up.
 
-Make an empty repo on GitHub. **No README, no .gitignore, no licence** — this folder already
-has all three, and letting GitHub add its own will collide with what's here.
-
-Then, from inside this folder:
+To send changes up, from inside this folder:
 
 ```bash
-git remote add origin https://github.com/YOUR-USERNAME/register.git
+git add -A
+git commit -m "say what changed"
+git push
+```
+
+`node_modules/` and `dist/` are ignored, so only source goes up.
+
+GitHub is a copy of the *code*, not of the shop's data. Items and sales live in the browser
+— see [Where the data lives](#where-the-data-lives). Pushing is not a backup; exporting is.
+
+<details>
+<summary>Starting over somewhere else</summary>
+
+To point this at a different repo, make an empty one on GitHub — **no README, no .gitignore,
+no licence**, since this folder already has all three — then:
+
+```bash
+git remote set-url origin https://github.com/YOUR-USERNAME/YOUR-REPO.git
 git push -u origin main
 ```
 
-After that first push, `git push` on its own is enough.
-
-`node_modules/` and `dist/` are already ignored, so only source goes up.
+</details>
 
 ---
 
