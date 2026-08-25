@@ -2,7 +2,7 @@ import React from 'react';
 import { fmt } from '../lib/money';
 
 export default function Header({
-  modes, mode, setMode, storeName, onStoreName, net, muted, onMute,
+  modes, mode, setMode, storeName, onStoreName, net, muted, onMute, onLogout,
 }) {
   return (
     <header className="bar">
@@ -43,6 +43,13 @@ export default function Header({
           title={muted ? 'Beeper off' : 'Beeper on'}
         >
           {muted ? '🔇' : '🔊'}
+        </button>
+        <button
+          type="button"
+          className="logout-btn"
+          onClick={onLogout}
+        >
+          Log out
         </button>
       </div>
     </header>

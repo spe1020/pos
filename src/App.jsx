@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 
 import Header from './components/Header';
+import LoginScreen from './components/LoginScreen';
 import Modal from './components/Modal';
 import SellPane from './components/SellPane';
 import ItemsPane from './components/ItemsPane';
@@ -15,6 +16,7 @@ import { priceCart, refundValue, remainingQty } from './lib/pricing';
 import { load, save, KEYS, exportBackup, importBackup, storageIsPersistent } from './lib/storage';
 import { useScanner } from './hooks/useScanner';
 import { useBeep } from './hooks/useBeep';
+import { useAuth } from './hooks/useAuth';
 
 const MODES = [
   { id: 'sell', label: 'Sell', key: 'F1' },
@@ -32,6 +34,9 @@ const DEFAULT_SETTINGS = {
 };
 
 export default function App() {
+  /* ------------------------------- auth -------------------------------- */
+  const { loggedIn, login, logout, timedOut } = useAuth();
+
   /* ------------------------------- state ------------------------------- */
   const [catalog, setCatalog] = useState(() => load(KEYS.catalog, {}));
   const [sales, setSales] = useState(() => load(KEYS.sales, []));
@@ -180,7 +185,7 @@ export default function App() {
     [catalog, discounts, mode, sales, settings.trackStock, addToCart, beep, notify]
   );
 
-  const blocked = !!(pending || customItem || picker || tendering || viewReceipt || confirming);
+  const blocked = !loggedIn || !!(pending || customItem || picker || tendering || viewReceipt || confirming);
 
   /**
    * A slipped decimal point is the one input error a parser can't catch: "500"
@@ -437,6 +442,16 @@ export default function App() {
   const lineForPicker = picker?.target === 'line' ? cart.find((l) => l.key === picker.key) : null;
 
   /* ================================ render ============================== */
+  if (!loggedIn) {
+    return (
+      <LoginScreen
+        storeName={settings.store}
+        timedOut={timedOut}
+        onLogin={login}
+      />
+    );
+  }
+
   return (
     <div className="pos-root">
       <Header
@@ -448,6 +463,7 @@ export default function App() {
         net={today.net}
         muted={settings.muted}
         onMute={() => setSettings((s) => ({ ...s, muted: !s.muted }))}
+        onLogout={() => logout('manual')}
       />
 
       {flash && <div className={'flash ' + (flash.tone === 'bad' ? 'bad' : 'ok')}>{flash.text}</div>}
