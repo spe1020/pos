@@ -14,7 +14,9 @@ npm install
 npm run dev
 ```
 
-Open the address it prints (usually `http://localhost:5173`).
+Open the address it prints (usually `http://localhost:5173`). Sign in with login **1234**
+and password **1234**. The register stays signed in while you're using it, and signs out
+after an hour idle — or when you tap **Log out**.
 
 To use it from a tablet or another computer on the same wifi:
 

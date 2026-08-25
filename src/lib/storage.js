@@ -49,6 +49,7 @@ export const KEYS = {
   sales: 'sales',
   discounts: 'discounts',
   settings: 'settings',
+  session: 'session',
 };
 
 /* ------------------------------ backup ------------------------------ */

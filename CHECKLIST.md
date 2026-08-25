@@ -7,8 +7,9 @@ opens for the first time. It takes about fifteen minutes. Nothing here needs any
 Automated tests cover the money arithmetic. They can't cover a scanner or a browser, so this
 is the part a person has to do.
 
-Start it up (`npm run dev`) and open the address it prints. Grab three or four things with
-barcodes on them — cereal boxes, cans, whatever's around.
+Start it up (`npm run dev`) and open the address it prints. Sign in with login `1234` and
+password `1234`. Grab three or four things with barcodes on them — cereal boxes, cans,
+whatever's around.
 
 > **Run this twice.** Once on `localhost` on the development machine, and again on the
 > deployed address (`https://spe1020.github.io/pos/`) **on the actual device that will sit at
